@@ -104,7 +104,6 @@ class TestRailAdapter:
             self._client = APIClient( 'https://kkbox.testrail.net/' )
             self._client.user = parser.get( 'Test Rail', 'email' )
             self._client.password = parser.get( 'Test Rail', 'password' )
-            self._mode = parser.get( 'Criteria', 'mode' )
 
     @OurDecorators.handleAPIError()
     def runIds( self, plan_id = None ):
@@ -128,7 +127,7 @@ class TestRailAdapter:
 
         return [ case[ 'case_id' ] for case in self._client.send_get( 'get_tests/' + str( run_id ) ) ]
 
-    def dumpSpoonResultToTestPlan( self, spoonReports = [], testRunId = None ) :
+    def dumpSpoonResultToTestPlan( self, spoonReports = [], testRunId = None, testMode = None) :
         if testRunId is None:
             raise Exception( "plan_id is not given" )
 
@@ -148,15 +147,18 @@ class TestRailAdapter:
                 _automationResults = _functionNameToAutomationResults[ _functionNames[ 0 ] ]
 
                 # tolerant mode
-                if self._mode == "0":
-                    _overallResult = self.STATUS_IDS[ "PASSED" ] if "PASS" in _automationResults else self.STATUS_IDS[ "FAILED" ]
+                if testMode == "0":
+                    _overallResult = self.STATUS_IDS["PASSED"] if "PASS" in _automationResults else self.STATUS_IDS[
+                        "FAILED"]
 
                 # aggressive mode
-                elif self._mode == "1" :
-                    _overallResult = self.STATUS_IDS[ "FAILED" ] if "FAIL" in _automationResults else self.STATUS_IDS[ "PASSED" ]
+                elif testMode == "1":
+                    _overallResult = self.STATUS_IDS["FAILED"] if "FAIL" in _automationResults else self.STATUS_IDS[
+                        "PASSED"]
 
-                else :
-                    raise Exception( "Unknown mode: %s" % self._mode )
+                # retest mode
+                elif testMode == "2":
+                    _overallResult = self.STATUS_IDS["RETEST"]
 
                 _uri  = "add_result_for_case/{}/{}".format( testRunId, _caseId )
                 _data = { 'status_id': _overallResult,
@@ -167,19 +169,23 @@ class TestRailAdapter:
 
 
 if __name__ == "__main__":
-    parser = ArgumentParser( description = "Dump SpoonReport to TestRail" )
+    parser = ArgumentParser(description="Dump SpoonReport to TestRail")
+    parser.add_argument("runId",
+                        help= "testRunId on testrail")
 
-    parser.add_argument( "runId",
-                         help = "testRunId on testrail" )
+    parser.add_argument("mode",
+                        help= "test Mode")
 
-    parser.add_argument( "-p", "--post-result",
-                         help = "Post result to TestRail",
-                         dest = "post",
-                         action = "store_true" )
+    parser.add_argument("-p", "--post-result",
+                        help= "Post result to TestRail",
+                        dest= "post",
+                        action= "store_true")
 
     args = parser.parse_args()
 
     TestRailAdapter().dumpSpoonResultToTestPlan(
-        spoonReports = [ "./report/smoke-report/result.json",
-                          "./report/rat-critical-report/result.json" ],
-        testRunId    = args.runId )
+        spoonReports=["./report/smoke-report/result.json",
+                      "./report/rat-critical-report/result.json"],
+        testRunId = args.runId,
+        testMode = args.mode
+    )
