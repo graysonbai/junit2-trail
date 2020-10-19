@@ -4,7 +4,6 @@ import sys
 import ConfigParser
 import subprocess
 import re
-import ast
 from testrail import *
 from argparse import ArgumentParser
 
@@ -90,20 +89,22 @@ class JqAdapter :
 
 class TestRailAdapter:
     _client = None
-    STATUS_IDS = { 'PASSED': 1,
-                   'FIXED' : 1,
-                   'RETEST': 4,
-                   'FAILED': 5,
-                   'REGRESSION': 5 }
+    STATUS_IDS = { 
+    'PASSED': 1,
+    'FIXED' : 1,
+    'RETEST': 4,
+    'FAILED': 5,
+    'REGRESSION': 5 
+    }
 
     def __init__( self ):
 
         if self._client is None:
-            parser = ConfigParser.ConfigParser()
-            parser.read('testrail.cfg')
-            self._client = APIClient( 'https://kkbox.testrail.net/' )
-            self._client.user = parser.get( 'Test Rail', 'email' )
-            self._client.password = parser.get( 'Test Rail', 'password' )
+            configParser = ConfigParser.ConfigParser()
+            configParser.read('testrail.cfg')
+            self._client          = APIClient( 'https://kkstream.testrail.net/' )
+            self._client.user     = configParser.get( 'Test Rail', 'email' )
+            self._client.password = configParser.get( 'Test Rail', 'password' )
 
     @OurDecorators.handleAPIError()
     def runIds( self, plan_id = None ):
@@ -133,9 +134,8 @@ class TestRailAdapter:
 
         # parsing result from 'result.json'
         for report in spoonReports:
-            _caseIdToFunctionNames = JqAdapter.caseIdToFunctioName( report )
-            _functionNameToAutomationResults = JqAdapter.functionNameToAutomationResult(
-                                                    JqAdapter.removeMessageFromReport( report ) )
+            _caseIdToFunctionNames           = JqAdapter.caseIdToFunctioName( report )
+            _functionNameToAutomationResults = JqAdapter.functionNameToAutomationResult( JqAdapter.removeMessageFromReport( report ) )
 
             for _caseId, _functionNames in JqAdapter.caseIdToFunctioName( report ).iteritems():
                 if len( _functionNames ) > 1:
@@ -162,30 +162,31 @@ class TestRailAdapter:
 
                 _uri  = "add_result_for_case/{}/{}".format( testRunId, _caseId )
                 _data = { 'status_id': _overallResult,
-                          'comment'  : 'test' }
+                          'comment'  : 'Automation test' }
 
                 print( "Update Case 'C%s' to test run [%s] as %s" % ( _caseId, testRunId, _overallResult ) )
+                print( "DebugLog:       " , _uri )
+                print( "DebugLog:       " , _data )
                 self._client.send_post( _uri, _data )
 
 
 if __name__ == "__main__":
-    parser = ArgumentParser(description="Dump SpoonReport to TestRail")
-    parser.add_argument("runId",
+    configParser = ArgumentParser(description="Dump SpoonReport to TestRail")
+    configParser.add_argument("runId",
                         help= "testRunId on testrail")
 
-    parser.add_argument("mode",
+    configParser.add_argument("mode",
                         help= "test Mode")
 
-    parser.add_argument("-p", "--post-result",
+    configParser.add_argument("-p", "--post-result",
                         help= "Post result to TestRail",
                         dest= "post",
                         action= "store_true")
 
-    args = parser.parse_args()
+    args = configParser.parse_args()
 
     TestRailAdapter().dumpSpoonResultToTestPlan(
-        spoonReports=["./report/smoke-report/result.json",
-                      "./report/rat-critical-report/result.json"],
+        spoonReports=["./report/rat-critical-report/result.json"],
         testRunId = args.runId,
         testMode = args.mode
     )

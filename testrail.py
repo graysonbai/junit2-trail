@@ -1,4 +1,4 @@
-#
+# -*- coding: utf-8 -*-
 # TestRail API binding for Python 2.x (API v2, available since 
 # TestRail 3.0)
 #
@@ -10,7 +10,7 @@
 # Copyright Gurock Software GmbH. See license.md for details.
 #
 
-import urllib2, json, base64
+import urllib2, json, base64, ssl
 
 class APIClient:
     def __init__(self, base_url):
@@ -52,6 +52,12 @@ class APIClient:
 
     def __send_request(self, method, uri, data):
         url = self.__url + uri
+
+        # Python 2.7.9 之後引入了一個新特性，當你使用urllib.urlopen一個 https 的時候會驗證一次 SSL證書。
+        # 當目標使用的是自簽名的證書時就會報urllib.error.URLError錯誤。解決方法如下：
+        # https://blog.csdn.net/qq_25403205/article/details/81258327
+        ssl._create_default_https_context = ssl._create_unverified_context
+
         request = urllib2.Request(url)
         if (method == 'POST'):
             request.add_data(json.dumps(data))
